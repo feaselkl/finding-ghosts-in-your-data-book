@@ -10,8 +10,6 @@ from statsmodels import robust
 from scipy.stats import shapiro, normaltest, anderson, boxcox
 import scikit_posthocs as ph
 import math
-# Chapter 9
-from sklearn.mixture import GaussianMixture
 
 def detect_univariate_statistical(
     df,
@@ -26,8 +24,7 @@ def detect_univariate_statistical(
     # The reason Grubbs' and Dixon's tests are so low is that they capture at most
     # 1 (Grubbs) or 2 (Dixon) outliers.
     weights = {"sds": 0.25, "iqrs": 0.35, "mads": 0.45,
-               "grubbs": 0.05, "dixon": 0.15, "gesd": 0.3,
-               "gaussian_mixture": 1.5}
+               "grubbs": 0.05, "dixon": 0.15, "gesd": 0.3}
 
     if (df['value'].count() < 3):
         return (df.assign(is_anomaly=False, anomaly_score=0.0), weights, "Must have a minimum of at least three data points for anomaly detection.")
@@ -63,14 +60,12 @@ def run_tests(df):
         # Mark these as 0s to start and set them on if we run them.
         "grubbs": 0,
         "gesd": 0,
-        "dixon": 0,
-        "gaussian_mixture": 0
+        "dixon": 0
     }
     # Start off with values of -1.  If we run a test, we'll populate it with a valid value.
     df['grubbs'] = -1
     df['gesd'] = -1
     df['dixon'] = -1
-    df['gaussian_mixture'] = -1
 
     # Grubbs, GESD, and Dixon's Q tests all require that the input data be normally distributed.
     # Further, Dixon requires no more than 25 observations.
@@ -103,17 +98,6 @@ def run_tests(df):
     else:
         diagnostics["Extended tests"] = "Did not run extended tests because the dataset was not normal and could not be normalized."
 
-    if b['len'] >= 15:
-        num_clusters = get_number_of_gaussian_mixture_clusters(df['value'])
-        if (num_clusters > 1):
-            df['gaussian_mixture'] = check_gaussian_mixture(df['value'], num_clusters)
-            diagnostics["Gaussian mixture test"] = f"Ran Gaussian mixture test with {num_clusters} clusters."
-            tests_run['gaussian_mixture'] = 1
-        else:
-            diagnostics["Gaussian mixture test"] = "Did not run Gaussian mixture test because the dataset appears to contain one cluster."
-    else:
-        diagnostics["Gaussian mixture test"] = "Did not run Gaussian mixture test because we need at least 15 data points to run this test."
-    
     diagnostics["Tests Run"] = tests_run
 
     return (df, tests_run, diagnostics)
@@ -353,47 +337,6 @@ def check_dixon(col):
 
     return res
 
-def get_number_of_gaussian_mixture_clusters(col):
-    X = np.array(col).reshape(-1,1)
-    bic_vals = []
-    # Have a minimum of 2 clusters (if 10 rows come in)
-    # and a maximum of 9 clusters.
-    max_clusters = math.floor(min(col.shape[0]/5.0, 9))
-    for c in range(1, max_clusters, 1):
-        gm = GaussianMixture(n_components = c, random_state = 0, max_iter = 250, covariance_type='full').fit(X)
-        bic_vals.append(gm.bic(X))
-    return np.argmin(bic_vals) + 1
-
-def check_gaussian_mixture(col, best_fit_cluster_count):
-    # Because this is univariate, we need to reshape the array using -1,1 as our parameters.
-    # That will create a list per data point.
-    X = np.array(col).reshape(-1,1)
-    gm_model = GaussianMixture(n_components = best_fit_cluster_count, random_state = 0, max_iter = 250, covariance_type='full').fit(X)
-    xdf = pd.DataFrame(X, columns=["value"])
-    xdf["grp"] = list(gm_model.predict(X))
-    xdf["score"] = list(gm_model.score_samples(X))
-    # Clusters containing less than 5% of data will be marked as outliers.
-    min_num_items = math.ceil(xdf.shape[0] * .05)
-    small_groups = xdf.groupby('grp').count().reset_index().query('value <= @min_num_items')
-    small_groups["small_cluster"] = 1.0
-    xdf = xdf.merge(small_groups[['grp', 'small_cluster']], on='grp', how='left').fillna(0)
-    # Run MAD check per cluster to see if scores are more than 3 MAD from the median.
-    # If so, mark them as outliers.
-    for g in xdf["grp"].unique():
-        xdf_g = xdf[xdf["grp"] == g]
-        calc = perform_statistical_calculations(xdf_g["value"])
-        # In case there are duplicate values, we can drop them.
-        # The MAD score will be the same for each duplicated item.
-        xdf_g = xdf_g.drop_duplicates()
-        # If there is no spread within a cluster, we can't calculate MAD.
-        if calc["mad"] > 0.0:
-            xdf_g['far_off'] = [check_mad(val, calc["median"], calc["mad"], 3.0) for val in xdf_g['value']]
-        else:
-            xdf_g['far_off'] = 0.0
-        for r in range(len(xdf_g)):
-            xdf.loc[xdf['value']==xdf_g.iloc[r,0], "far_off"]=xdf_g.iloc[r,4]
-    return [max(sc, fo) for (sc, fo) in zip(xdf["small_cluster"], xdf["far_off"])]
-
 def score_results(df, tests_run, weights):
     # Chapter 7:  add in normal distribution checks
     # Add in observation length tests (n <= 25 for Dixon, n >= 7 for Grubbs, n >= 15 for GESD)
@@ -414,8 +357,7 @@ def score_results(df, tests_run, weights):
        df['mads'] * tested_weights['mads'] +
        df['grubbs'] * tested_weights['grubbs'] +
        df['gesd'] * tested_weights['gesd'] +
-       df['dixon'] * tested_weights['dixon'] +
-       df['gaussian_mixture'] * tested_weights['gaussian_mixture']
+       df['dixon'] * tested_weights['dixon']
     ) / (max_weight * 0.95))
 
 def determine_outliers(

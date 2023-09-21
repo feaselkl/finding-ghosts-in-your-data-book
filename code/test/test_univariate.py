@@ -73,12 +73,12 @@ def test_detect_univariate_statistical_returns_zero_anomalies(df_input):
 anomalous_sample = [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 7, 8, 9, 10, 2550, 9000]
 @pytest.mark.parametrize("df_input, sensitivity_score, number_of_anomalies", [
     (anomalous_sample, 100, 17),
-    (anomalous_sample, 95, 13),# In chapter 6, this is 15; in chapter 7, it decreases to 12; in chapter 9, it increases again to 13.
-    (anomalous_sample, 85, 9), # In chapter 6, this is 8; in chapter 7, it decreases to 5; in chapter 9, it increases again to 9.
-    (anomalous_sample, 75, 6), # In chapter 6, this is 5; in chapter 7, it decreases to 2; in chapter 9, it increases again to 6.
+    (anomalous_sample, 95, 12),# In chapter 6, this is 15; in chapter 7, it decreases to 12; in chapter 9, it increases again to 13.
+    (anomalous_sample, 85, 5), # In chapter 6, this is 8; in chapter 7, it decreases to 5; in chapter 9, it increases again to 9.
+    (anomalous_sample, 75, 2), # In chapter 6, this is 5; in chapter 7, it decreases to 2; in chapter 9, it increases again to 6.
     (anomalous_sample, 50, 2),
     (anomalous_sample, 25, 2),
-    (anomalous_sample, 1, 1)   # In chapter 6, this is 1; in chapter 7, it decreases to 0; in chapter 9, it increases back to 1.
+    (anomalous_sample, 1, 0)   # In chapter 6, this is 1; in chapter 7, it decreases to 0; in chapter 9, it increases back to 1.
 ])
 def test_detect_univariate_statistical_sensitivity_affects_anomaly_count(df_input, sensitivity_score, number_of_anomalies):
     # Arrange
@@ -94,13 +94,13 @@ def test_detect_univariate_statistical_sensitivity_affects_anomaly_count(df_inpu
     (anomalous_sample, 0.0, 0),
     (anomalous_sample, 0.01, 1),
     (anomalous_sample, 0.1, 2),
-    (anomalous_sample, 0.2, 4), # In chapter 7, this is 3; in chapter 9, it increases to 4.
-    (anomalous_sample, 0.3, 6), # In chapter 7, this is 5; in chapter 9, it decreases to 4 without the equivalency change and increases to 6 with it.
-    (anomalous_sample, 0.4, 7), # In chapter 7, this is 6; in chapter 9, it increases to 7.
+    (anomalous_sample, 0.2, 5), # In chapter 7, this is 3; in chapter 9, it increases to 4.
+    (anomalous_sample, 0.3, 5), # In chapter 7, this is 5; in chapter 9, it decreases to 4 without the equivalency change and increases to 6 with it.
+    (anomalous_sample, 0.4, 8), # In chapter 7, this is 6; in chapter 9, it increases to 7.
     (anomalous_sample, 0.5, 9), # In chapter 7, this is 8; in chapter 9, it decreases to 7 without the equivalency change and increases to 9 with it.
-    (anomalous_sample, 0.6, 10), # In chapter 7, this is 9; in chapter 9, it increases to 10.
+    (anomalous_sample, 0.6, 11), # In chapter 7, this is 9; in chapter 9, it increases to 10.
     (anomalous_sample, 0.7, 12),
-    (anomalous_sample, 0.8, 13), # In chapter 7, this is 12; in chapter 9, it increases to 13.
+    (anomalous_sample, 0.8, 14), # In chapter 7, this is 12; in chapter 9, it increases to 13.
     (anomalous_sample, 0.9, 15),
     (anomalous_sample, 1.0, 17)
 ])
@@ -293,26 +293,3 @@ def test_normalization_required_for_certain_tests(df_input, test_name, test_shou
     (df_tested, tests_run, diagnostics) = run_tests(df)
     # Assert:  the distribution is/is not normal, based on our expectations.
     assert(test_should_run == diagnostics["Tests Run"][test_name])
-
-
-@pytest.mark.parametrize("df_input, number_of_anomalies", [
-    ([1, 1, 1, 2, 2, 2, 3, 3, 98, 98, 98, 99, 99, 99, 100, 100], 0), # Two clusters with no outliers
-    ([1, 1, 1, 2, 2, 2, 3, 3, 50, 98, 98, 98, 99, 99, 99, 100, 100], 1), # Two clusters with one outlier
-    ([1, 1, 1, 2, 2, 2, 3, 3, 50, -50, 98, 98, 98, 99, 99, 99, 100, 100], 2), # Two clusters with two outliers
-    ([1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 98, 98, 99, 99, 100], 0), # 4 clusters (due to whole numbers and cap), with no outliers
-    ([1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 50, 98, 98, 99, 99, 100], 1), # 5 clusters (due to whole numbers and cap) with 50 as outlier
-    ([1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, -50, 50, 98, 98, 99, 99, 100], 5), # 5 clusters (due to whole numbers and cap) with -50, 50, 98, and 100 as outliers
-    ([1.4, 1.2, 1.0, 1.8, 1.4, 1.3, 1.8, 2.0, 2.1, 2.3, 2.5, 2.3, 2.6, 2.8, 2.4, 2.3, 3.1, 3.9, 3.2, 3.7, 3.1, 3.0, 3.4, 3.3, 98.6, 98.3, 99.6, 99.9, 100.2], 2), # Two mismatched-sized clusters.  98.3 and 98.6 are outliers because of MAD and IQR.
-    ([1.4, 1.2, 1.0, 1.8, 1.4, 1.3, 1.8, 2.0, 2.1, 2.3, 2.5, 2.3, 2.6, 2.8, 2.4, 2.3, 3.1, 3.9, 3.2, 3.7, 3.1, 3.0, 3.4, 3.3, 50.2, 98.6, 98.3, 99.6, 99.9, 100.2], 3), # Three clusters.  98.3 and 98.6 marked as outliers because of high MAD and IQR scores.
-    ([1.4, 1.2, 1.0, 1.8, 1.4, 1.3, 1.8, 2.0, 2.1, 2.3, 2.5, 2.3, 2.6, 2.8, 2.4, 2.3, 3.1, 3.9, 3.2, 3.7, 3.1, 3.0, 3.4, 3.3, 50.2, -50.1, 98.6, 98.3, 99.6, 99.9, 100.2], 5), # Four clusters.  98.3, 98.6, and 100.2 marked as outliers because of high MAD and IQR scores.
-])
-def test_detect_univariate_statistical_multi_cluster(df_input, number_of_anomalies):
-    # Arrange
-    df = pd.DataFrame(df_input, columns=["value"])
-    sensitivity_score = 50.0
-    max_fraction_anomalies = 1.0
-    # Act
-    (df_out, weights, details) = detect_univariate_statistical(df, sensitivity_score, max_fraction_anomalies)
-    num_anomalies = df_out[df_out['is_anomaly'] == True].shape[0]
-    # Assert:  we have the correct number of anomalies
-    assert(num_anomalies == number_of_anomalies)
