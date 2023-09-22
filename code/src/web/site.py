@@ -38,11 +38,6 @@ def convert_single_time_series_list_to_json(time_series_str):
     mv_ast = ast.literal_eval(time_series_str)
     return json.dumps([{"key": k, "dt":dt, "value": v} for idx,[k,dt,v] in enumerate(mv_ast)])
 
-@st.cache_data
-def convert_multi_time_series_list_to_json(time_series_str):
-    mv_ast = ast.literal_eval(time_series_str)
-    return json.dumps([{"key": k, "series_key":sk, "dt":dt, "value": v} for idx,[k,sk,dt,v] in enumerate(mv_ast)])
-
 def main():
     st.write(
     """
@@ -120,60 +115,6 @@ def main():
         {"key": "205", "dt": "2021-02-01T17:00:00Z", "value": 225},
         {"key": "206", "dt": "2021-02-02T17:00:00Z", "value": 90}
     ]"""
-    elif method == "timeseries/multiple":
-        starting_data_set = """[
-        {"key": "k1",  "series_key": "s1", "dt": "2021-12-11T08:00:00Z", "value": 14.3},
-        {"key": "k2",  "series_key": "s1", "dt": "2021-12-11T09:00:00Z", "value": 15.3},
-        {"key": "k3",  "series_key": "s1", "dt": "2021-12-11T10:00:00Z", "value": 15.8},
-        {"key": "k4",  "series_key": "s1", "dt": "2021-12-11T11:00:00Z", "value": 16.2},
-        {"key": "k5",  "series_key": "s1", "dt": "2021-12-11T12:00:00Z", "value": 16.4},
-        {"key": "k6",  "series_key": "s1", "dt": "2021-12-11T13:00:00Z", "value": 16.5},
-        {"key": "k7",  "series_key": "s1", "dt": "2021-12-11T14:00:00Z", "value": 16.3},
-        {"key": "k8",  "series_key": "s1", "dt": "2021-12-11T15:00:00Z", "value": 16.0},
-        {"key": "k9",  "series_key": "s1", "dt": "2021-12-11T16:00:00Z", "value": 15.5},
-        {"key": "k10", "series_key": "s1", "dt": "2021-12-11T17:00:00Z", "value": 15.1},
-        {"key": "k11", "series_key": "s1", "dt": "2021-12-11T18:00:00Z", "value": 14.6},
-        {"key": "k12", "series_key": "s1", "dt": "2021-12-11T19:00:00Z", "value": 14.4},
-        {"key": "k13", "series_key": "s1", "dt": "2021-12-11T20:00:00Z", "value": 14.1},
-        {"key": "k14", "series_key": "s1", "dt": "2021-12-11T21:00:00Z", "value": 13.9},
-        {"key": "k15", "series_key": "s1", "dt": "2021-12-11T22:00:00Z", "value": 13.7},
-        {"key": "k16", "series_key": "s1", "dt": "2021-12-11T23:00:00Z", "value": 190.8},
-        {"key": "k17", "series_key": "s1", "dt": "2021-12-12T00:00:00Z", "value": 193.7},
-        {"key": "k1a", "series_key": "s2", "dt": "2021-12-11T08:00:00Z", "value": 24.3},
-        {"key": "k2a", "series_key": "s2", "dt": "2021-12-11T09:00:00Z", "value": 25.3},
-        {"key": "k3a", "series_key": "s2", "dt": "2021-12-11T10:00:00Z", "value": 25.8},
-        {"key": "k4a", "series_key": "s2", "dt": "2021-12-11T11:00:00Z", "value": 26.2},
-        {"key": "k5a", "series_key": "s2", "dt": "2021-12-11T12:00:00Z", "value": 26.4},
-        {"key": "k6a", "series_key": "s2", "dt": "2021-12-11T13:00:00Z", "value": 26.5},
-        {"key": "k7a", "series_key": "s2", "dt": "2021-12-11T14:00:00Z", "value": 26.3},
-        {"key": "k8a", "series_key": "s2", "dt": "2021-12-11T15:00:00Z", "value": 26.0},
-        {"key": "k9a", "series_key": "s2", "dt": "2021-12-11T16:00:00Z", "value": 25.5},
-        {"key": "k10a","series_key": "s2", "dt": "2021-12-11T17:00:00Z", "value": 25.1},
-        {"key": "k11a","series_key": "s2", "dt": "2021-12-11T18:00:00Z", "value": 24.6},
-        {"key": "k12a","series_key": "s2", "dt": "2021-12-11T19:00:00Z", "value": 24.4},
-        {"key": "k13a","series_key": "s2", "dt": "2021-12-11T20:00:00Z", "value": 4.1},
-        {"key": "k14a","series_key": "s2", "dt": "2021-12-11T21:00:00Z", "value": 213.9},
-        {"key": "k15a","series_key": "s2", "dt": "2021-12-11T22:00:00Z", "value": 23.7},
-        {"key": "k16a","series_key": "s2", "dt": "2021-12-11T23:00:00Z", "value": 17.8},
-        {"key": "k17a","series_key": "s2", "dt": "2021-12-12T00:00:00Z", "value": 183.7},
-        {"key": "k1b", "series_key": "s3", "dt": "2021-12-11T08:00:00Z", "value": 28.3},
-        {"key": "k2b", "series_key": "s3", "dt": "2021-12-11T09:00:00Z", "value": 29.3},
-        {"key": "k3b", "series_key": "s3", "dt": "2021-12-11T10:00:00Z", "value": 29.8},
-        {"key": "k4b", "series_key": "s3", "dt": "2021-12-11T11:00:00Z", "value": 30.2},
-        {"key": "k5b", "series_key": "s3", "dt": "2021-12-11T12:00:00Z", "value": 22.4},
-        {"key": "k6b", "series_key": "s3", "dt": "2021-12-11T13:00:00Z", "value": 24.5},
-        {"key": "k7b", "series_key": "s3", "dt": "2021-12-11T14:00:00Z", "value": 28.3},
-        {"key": "k8b", "series_key": "s3", "dt": "2021-12-11T15:00:00Z", "value": 21.0},
-        {"key": "k9b", "series_key": "s3", "dt": "2021-12-11T16:00:00Z", "value": 25.5},
-        {"key": "k10b","series_key": "s3", "dt": "2021-12-11T17:00:00Z", "value": 30.1},
-        {"key": "k11b","series_key": "s3", "dt": "2021-12-11T18:00:00Z", "value": 33.6},
-        {"key": "k12b","series_key": "s3", "dt": "2021-12-11T19:00:00Z", "value": 32.4},
-        {"key": "k13b","series_key": "s3", "dt": "2021-12-11T20:00:00Z", "value": 19.1},
-        {"key": "k14b","series_key": "s3", "dt": "2021-12-11T21:00:00Z", "value": 122.9},
-        {"key": "k15b","series_key": "s3", "dt": "2021-12-11T22:00:00Z", "value": 23.7},
-        {"key": "k16b","series_key": "s3", "dt": "2021-12-11T23:00:00Z", "value": 215.8},
-        {"key": "k17b","series_key": "s3", "dt": "2021-12-12T00:00:00Z", "value": 298.7}
-    ]"""
     else:
         starting_data_set = "Select a method."
     input_data = st.text_area(label = "Data to process (in JSON format):", value=starting_data_set, height=300)
@@ -185,8 +126,6 @@ def main():
             input_data = convert_multivariate_list_to_json(input_data)
         if method == "timeseries/single" and convert_to_json:
             input_data = convert_single_time_series_list_to_json(input_data)
-        if method == "timeseries/multiple" and convert_to_json:
-            input_data = convert_multi_time_series_list_to_json(input_data)
         resp = process(server_url, method, sensitivity_score, max_fraction_anomalies, debug, input_data)
         res = json.loads(resp.content)
         df = pd.DataFrame(res['anomalies'])
