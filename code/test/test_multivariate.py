@@ -143,12 +143,12 @@ def test_detect_multivariate_runs_cof(df_input, should_run_cof):
     assert(should_run_cof == did_run_cof)
 
 @pytest.mark.parametrize("df_input, sensitivity_score, number_of_anomalies", [
-    (sample_input, 100, 6),     # Was 11 in chapter 10, 8 in chapter 11
-    (sample_input, 50, 6),      # Was 11 in chapter 10, 8 in chapter 11
-    (sample_input, 40, 6),      # Was 11 in chapter 10, 8 in chapter 11
-    (sample_input, 25, 6),      # Was 4 in chapter 10, 8 in chapter 11
+    (sample_input, 100, 8),     # Was 11 in chapter 10, 8 in chapter 11
+    (sample_input, 50, 8),      # Was 11 in chapter 10, 8 in chapter 11
+    (sample_input, 40, 8),      # Was 11 in chapter 10, 8 in chapter 11
+    (sample_input, 25, 8),      # Was 4 in chapter 10, 8 in chapter 11
     (sample_input, 5, 5),       # Was 2 in chapter 10
-    (sample_input, 1, 3),       # Was 1 in chapter 10, 2 in chapter 11
+    (sample_input, 1, 2),       # Was 1 in chapter 10, 2 in chapter 11
     (sample_input, 0, 0),
 ])
 def test_detect_multivariate_cof_sample_sensitivity(df_input, sensitivity_score, number_of_anomalies):
@@ -163,12 +163,12 @@ def test_detect_multivariate_cof_sample_sensitivity(df_input, sensitivity_score,
     assert(number_of_anomalies == df_out[df_out['is_anomaly'] == True].shape[0])
 
 @pytest.mark.parametrize("df_input, max_fraction_anomalies, number_of_anomalies", [
-    (sample_input, 1.0, 6),     # Was 8 in chapter 11
-    (sample_input, 0.8, 6),     # Was 8 in chapter 11
-    (sample_input, 0.6, 6),     # Was 8 in chapter 11
-    (sample_input, 0.4, 6),     # Was 8 in chapter 11
-    (sample_input, 0.2, 6),     # Was 8 in chapter 11
-    (sample_input, 0.1, 6),     # Was 8 in chapter 11
+    (sample_input, 1.0, 8),     # Was 8 in chapter 11
+    (sample_input, 0.8, 8),     # Was 8 in chapter 11
+    (sample_input, 0.6, 8),     # Was 8 in chapter 11
+    (sample_input, 0.4, 8),     # Was 8 in chapter 11
+    (sample_input, 0.2, 8),     # Was 8 in chapter 11
+    (sample_input, 0.1, 8),     # Was 8 in chapter 11
     (sample_input, 0.01, 1),
 ])
 def test_detect_multivariate_cof_sample_fraction(df_input, max_fraction_anomalies, number_of_anomalies):
