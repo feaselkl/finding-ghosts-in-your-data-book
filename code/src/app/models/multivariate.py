@@ -6,8 +6,6 @@ import pandas as pd
 import numpy as np
 from pandas.core import base
 from pyod.models.cof import COF
-from pyod.models.loci import LOCI
-from pyod.models.copod import COPOD
 from pyod.models.combination import aom, moa, average, median, maximization, majority_vote
 from pyod.utils.data import evaluate_print
 from sklearn.preprocessing import OrdinalEncoder
@@ -23,11 +21,8 @@ def detect_multivariate_statistical(
     # sensitivity factor because they will be on different scales.
     # COF has a minimum threshold of 1.35 (estimated by us).
     # LOCI has a threshold of 3.0 (estimated by paper authors).
-    weights = { "cof": 1.0, "loci": 1.0, "copod": 1.0 }
-    # For COPOD, we get 2.3 from -ln(0.10).  This is a little low but because
-    # we're adding the median COPOD value in the calculation, this puts us
-    # well above the expected median.
-    sensitivity_factors = { "cof": 1.35, "loci": 3.0, "copod":2.3 }
+    weights = { "cof": 1.0 }
+    sensitivity_factors = { "cof": 1.35 }
 
     num_data_points = df['vals'].count()
     if (num_data_points < 15):
@@ -82,15 +77,9 @@ def encode_string_data(df):
 
 def run_tests(df, max_fraction_anomalies, n_neighbors):
     num_records = df['key'].shape[0]
-    if (num_records > 1000):
-        run_loci = 0
-    else:
-        run_loci = 1
 
     tests_run = {
-        "cof": 1,
-        "loci": run_loci,
-        "copod": 1
+        "cof": 1
     }
     diagnostics = {
         "Number of records": num_records
@@ -119,21 +108,6 @@ def run_tests(df, max_fraction_anomalies, n_neighbors):
     anomaly_score = median(scores_cof)
     df["anomaly_score_cof"] = anomaly_score
 
-    # LOCI
-    if (run_loci == 1):
-        (labels_loci, scores_loci, diag_loci) = check_loci(col_array)
-        df["is_raw_anomaly_loci"] = labels_loci
-        anomaly_score = anomaly_score + scores_loci
-        diagnostics["LOCI"] = diag_loci
-        df["anomaly_score_loci"] = scores_loci
-
-    # COPOD
-    (labels_copod, scores_copod, diag_copod) = check_copod(col_array)
-    df["is_raw_anomaly_copod"] = labels_copod
-    diagnostics["COPOD"] = diag_copod
-    df["anomaly_score_copod"] = scores_copod
-    anomaly_score = anomaly_score + scores_copod
-
     df["anomaly_score"] = anomaly_score
     return (df, tests_run, diagnostics)
 
@@ -147,23 +121,6 @@ def check_cof(col_array, max_fraction_anomalies, n_neighbors):
     }
     return (clf.labels_, clf.decision_scores_, diagnostics)
 
-# LOCI doesn't use contamination and has good defaults of k=3 and alpha=0.5.
-def check_loci(col_array):
-    clf = LOCI()
-    clf.fit(col_array)
-    diagnostics = {
-        "LOCI Threshold": clf.threshold_
-    }
-    return (clf.labels_, clf.decision_scores_, diagnostics)
-
-def check_copod(col_array):
-    clf = COPOD()
-    clf.fit(col_array)
-    diagnostics = {
-        "COPOD Threshold": clf.threshold_
-    }
-    return (clf.labels_, clf.decision_scores_, diagnostics)
-
 def determine_outliers(
     df,
     tests_run,
@@ -171,20 +128,13 @@ def determine_outliers(
     sensitivity_score,
     max_fraction_anomalies
 ):
-    # Need to multiply this because we don't know up-front if we ran, e.g., LOCI.
-    tested_sensitivity_factors = {sf: sensitivity_factors.get(sf, 0) * tests_run.get(sf, 0) for sf in set(sensitivity_factors).union(tests_run)}
-    # COPOD typically has a fairly consistent spread but the median point may be quite different,
-    # so we will start from the median and add our sensitivity factor to it.
-    median_copod = df["anomaly_score_copod"].median()
-    sensitivity_threshold = sum([tested_sensitivity_factors[w] for w in tested_sensitivity_factors]) + median_copod
-    diagnostics = { "Sensitivity threshold": sensitivity_threshold, "COPOD Median": median_copod }
     # Convert sensitivity score to be approximately the same
     # scale as anomaly score.  Note that sensitivity score is "reversed",
     # such that 100 is the *most* sensitive.
     # Multiply this by the second-largest anomaly score to scale appropriately.
     second_largest = df['anomaly_score'].nlargest(2).iloc[1]
     sensitivity_score = (100 - sensitivity_score) * second_largest / 100.0
-    diagnostics["Raw sensitivity score"] = sensitivity_score
+    diagnostics = {"Raw sensitivity score": sensitivity_score }
     # Get the 100-Nth percentile of anomaly score.
     # Ex:  if max_fraction_anomalies = 0.1, get the
     # 90th percentile anomaly score.
@@ -198,4 +148,4 @@ def determine_outliers(
     if max_fraction_anomaly_score > sensitivity_score and max_fraction_anomalies < 1.0:
         sensitivity_score = max_fraction_anomaly_score
     diagnostics["Sensitivity score"] = sensitivity_score
-    return (df.assign(is_anomaly=df['anomaly_score'] > np.max([sensitivity_score, sensitivity_threshold])), diagnostics)
+    return (df.assign(is_anomaly=df['anomaly_score'] > np.max([sensitivity_score, 1.35])), diagnostics)
