@@ -5,14 +5,13 @@
 import pandas as pd
 import numpy as np
 from pandas.core import base
-from tslearn.piecewise import SymbolicAggregateApproximation
 
 def detect_multi_timeseries(
     df,
     sensitivity_score,
     max_fraction_anomalies
 ):
-    weights = { "DIFFSTD": 1.0, "SAX": 1.0 }
+    weights = { "DIFFSTD": 1.0 }
 
     # Ensure that everything is sorted by dt and series key
     df = df.sort_values(["dt", "series_key"], axis=0, ascending=True)
@@ -35,8 +34,7 @@ def detect_multi_timeseries(
 
 def run_tests(df):
     tests_run = {
-        "DIFFSTD": 1,
-        "SAX": 1
+        "DIFFSTD": 1
     }
 
     # Break out each series to operate on individually.
@@ -49,11 +47,6 @@ def run_tests(df):
         "Number of time series": num_series,
         "Time series length": l
     }
-
-    # Perform SAX first while everything is still in individual series.
-    # This will add sax_distance to each point in each series.
-    (series, diag_sax) = check_sax(series, num_series, l)
-    diagnostics["SAX"] = diag_sax    
 
     # Break out the series into segments of approximately 7 data points.
     # 7 data points allows us to have at least 2 segments given our 15-point minimum.
@@ -105,65 +98,6 @@ def check_diffstd(series_segments, segment_means, num_series, num_segments):
             series_segments[i][j]['diffstd_distance'] = diffstd(series_segments[i][j]['value'], segment_means[j])
     return series_segments
 
-def check_sax(series, num_series, l):
-    if (l < 100):
-        segment_split = 2
-    elif (l < 1000):
-        segment_split = 3
-    else:
-        segment_split = 5
-
-    # The current recommendation for SAX is that you limit the alphabet size to 3-5, with 4 being
-    # the typical sweet spot.  We also want to normalize our input data, so scale = True.
-    # We determine each alphabet character based on 2-5 data points (depending on total data length)
-    sax = SymbolicAggregateApproximation(n_segments= l//segment_split, alphabet_size_avg=4, scale=True)
-
-    # slist is a list of lists:  one list per series, NOT per segment!
-    slist = [series[i]['value'].tolist() for i in range(num_series)]
-
-    # sax_data is an array containing a list (one per series) of lists (containing the "letter")
-    #    eg:  array([ [[1],[1],[1]], [[1],[0],[2]], [[2],[2],[1]] ])
-    # Note that tslearn doesn't use a letter-based alphabet but instead a numeric one:  0, 1, 2, 3.
-    sax_data = sax.fit_transform(slist)
-
-    # tslearn gives us the ability to perform pairwise comparisons of SAX results using a distance measure.
-    # We will break things into fixed-size chunks of 4 letters, e.g. 1103 | 3111 | 2203
-    # Then, we can perform 1-versus-all comparisons of each word versus the other words in the same position.
-    word_size = 4
-    num_words = len(sax_data[0])//word_size
-
-    # Create a matrix which will hold the mean score of these pairwise comparisons.
-    m = np.empty((num_series, num_words))
-    for i in range(num_series):
-        for j in range(num_words):
-            # Calculate pairwise distances for each word of SAX results
-            # For example, given three series:
-            #  1103 | 1111 | 2203
-            #  1100 | 2111 | 2202
-            #  1211 | 3111 | 2201
-            # We would find the distance between 1103 and each of 1100 and 1211 and average it out.
-            # That result would go into m[0][0].
-            # m[0][1] would be the average distance between 1111 and 2111 / 3111, etc.
-            # The calculation here technically also includes the distance between 1103 and 1103, which is always 0.
-            # Therefore, we subtract 1 from num_series and we still get a good average.
-            m[i][j] = sum(sax.distance_sax(sax_data[i][j*word_size:(1+j)*word_size],sax_data[k][j*word_size:(1+j)*word_size])
-                for k in range(num_series))/(num_series-1)
-
-    diagnostics = {
-        "Segment size per letter": segment_split,
-        "Number of segments":  l//segment_split,
-        "Word size": word_size,
-        "Number of words": num_words,
-        "SAX matrix": m.tolist()
-    }
-
-    # Set the SAX distance for each section of each series.
-    for i in range(num_series):
-        # If we have "overflow" (e.g., 19 data points and segment_split=2, use the final word)
-        series[i]['sax_distance'] = [m[i][min(j//(word_size*segment_split), num_words-1)] for j,val in enumerate(series[0].index)]
-
-    return (series, diagnostics)
-
 def score_results(df, tests_run, sensitivity_score):
     # Calculate anomaly score for each series independently.
     # This is because DIFFSTD distances are not normalized across series.
@@ -184,24 +118,12 @@ def score_results(df, tests_run, sensitivity_score):
         # The diffstd_score is the percentage difference between the distance and the sensitivity threshold.
         series[i]['diffstd_score'] = (series[i]['diffstd_distance'] - diffstd_sensitivity_threshold) / diffstd_sensitivity_threshold
 
-        # SAX also doesn't have a hard cutoff point so we will use a rule of thumb here as well.
-        # Some divergence is noticeable at approximately 2.5 and major divergence is notable at about 3-4.
-        # If we multiply by 15, we can calculate the percentage of this score versus (100 - sensitivity_score).
-        # This will not necessarily put us on the same scale as DIFFSTD but will ensure that for higher sensitivity
-        # scores, 1.5 will trigger with a SAX score > 0, indicating at least a small outlier.
-        # Also, cap the threshold at a floor value of 25.0 to prevent absurd results.
-        sax_sensitivity_threshold = max(100.0 - sensitivity_score, 25.0)
-        series[i]['sax_score'] = ((series[i]['sax_distance'] * 15.0) - sax_sensitivity_threshold) / sax_sensitivity_threshold
-
-        # Our anomaly score is the sum of diffstd_score and sax_score.  Because DIFFSTD and SAX
-        # split data different ways, this helps us at the margin with determining *which* data points in the series
-        # are the biggest outliers, as the intersection of high SAX + high DIFFSTD will be the most likely culprits.
-        series[i]['anomaly_score'] = series[i]['sax_score'] + series[i]['diffstd_score']
+        # Our anomaly score is the diffstd_score.
+        series[i]['anomaly_score'] = series[i]['diffstd_score']
 
         diagnostics["Series " + str(i)] = {
             "Mean DIFFSTD distance": diffstd_mean,
-            "DIFFSTD sensitivity threshold": diffstd_sensitivity_threshold,
-            "SAX sensitivity threshold": sax_sensitivity_threshold
+            "DIFFSTD sensitivity threshold": diffstd_sensitivity_threshold
         }
 
     return (pd.concat(series), diagnostics)

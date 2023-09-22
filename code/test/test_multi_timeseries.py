@@ -1,5 +1,4 @@
 from numpy import number
-from app.models.multi_timeseries import detect_multi_timeseries
 from src.app.models.multi_timeseries import *
 import pandas as pd
 import pytest
@@ -44,9 +43,9 @@ sample_input = [["k1",  "s1", "2021-12-11T08:00:00Z", 14.3],
     (sample_input, 90, 16),
     (sample_input, 80, 16),
     (sample_input, 70, 16),
-    (sample_input, 60, 0), # Was 16 in chapter 16
-    (sample_input, 50, 0),
-    (sample_input, 40, 0),
+    (sample_input, 60, 16), # Was 16 in chapter 16
+    (sample_input, 50, 16),
+    (sample_input, 40, 16),
     (sample_input, 25, 0),
     (sample_input, 5, 0),
     (sample_input, 1, 0),

@@ -314,13 +314,13 @@ def main():
             # Note that this may slow down graph loading for large graphs.
             s = px.scatter(df, x=df["dt"], y=df["value"], color=df["series_key"], 
                         symbol=df["is_anomaly"], symbol_sequence=['square', 'circle'],
-                        hover_data=["key", "anomaly_score", "is_anomaly", "sax_score", "diffstd_score", "segment_number"], render_mode="svg",
+                        hover_data=["key", "anomaly_score", "is_anomaly", "diffstd_score", "segment_number"], render_mode="svg",
                         color_discrete_sequence=px.colors.qualitative.Safe)
             s.update_traces(marker_size=9, showlegend=False)
             g = go.Figure(data=l.data + s.data + ml.data)
             st.plotly_chart(g, use_container_width=True)
 
-            tbl = df[['key', 'series_key', 'dt', 'segment_number', 'value', 'sax_distance', 'diffstd_distance', 'sax_score', 'diffstd_score', 'anomaly_score', 'is_anomaly']]
+            tbl = df[['key', 'series_key', 'dt', 'segment_number', 'value', 'diffstd_distance', 'diffstd_score', 'anomaly_score', 'is_anomaly']]
             st.write(tbl)
 
             if debug:
